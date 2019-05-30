@@ -10,14 +10,21 @@ import minimist from 'minimist';
 const args = minimist(process.argv.slice(2));
 const pathToFile = args.f || args.file || './input.json';
 const padding = args.p || args.padding || 4;
+const paddingPath = args.pp || args['padding-path'] || 16;
 
 
 try {
     const results = solveProblem(pathToFile);
-    console.log('Input');
-    console.log(results.input);
-    console.log('Output');
-    console.log(results.output);
+
+    console.log('Matrix');
+    console.log(results.matrix);
+
+    console.log('Shortest Path Lengths');
+    console.log(results.pathLengths);
+
+    console.log('Shortest Paths');
+    console.log(results.paths);
+
 }
 catch (e) {
     console.error(e.message);
@@ -28,9 +35,11 @@ function solveProblem(pathToFile) {
     validateMatrix(matrix);
 
     const graph = convertMatrixToGraph(matrix);
+    const results = getAlgorithmResultsFromGraph(graph);
     return {
-        input: matrixToString(matrix, padding),
-        output: resultsToString(getAlgorithmResultsFromGraph(graph), matrix, padding)
+        matrix: matrixToString(matrix, padding),
+        paths: pathsToString(results.previousVerticles, matrix, paddingPath),
+        pathLengths: distancesToString(results.distances, matrix, padding)
     };
 }
 
@@ -69,18 +78,43 @@ function matrixToString(matrix, padding = 0) {
     return heading + '\n' + matrix.reduce((str, column, i) => {
         str += numToLetters(i).padStart(padding);
         str += column.reduce((str, weight, j) => {
-            return str + String(typeof weight == 'number' && isFinite(weight) ? weight : '-').padStart(padding) + ' ';
+            return str + String(
+                typeof weight == 'string'
+                || typeof weight == 'number' && isFinite(weight)
+                ? weight
+                : '-'
+            ).padStart(padding) + ' ';
         }, '');
         return str + '\n';
     }, '');
 }
 
-function resultsToString(results, matrix, padding) {
+function distancesToString(distances, matrix, padding) {
     return matrixToString(
         matrix.map((column, i) =>
             column.map((cell, j) =>
-                results[numToLetters(i)][numToLetters(j)]
+                distances[numToLetters(i)][numToLetters(j)]
             )
+        ),
+        padding
+    );
+}
+
+function pathsToString(previousVerticles, matrix, padding) {
+    return matrixToString(
+        matrix.map((column, i) =>
+            column.map((cell, j) => {
+                const verticleGroup = previousVerticles[numToLetters(i)];
+                let previousVerticle = verticleGroup[numToLetters(j)];
+                let path = previousVerticle ? [numToLetters(j)] : [];
+
+                while (previousVerticle) {
+                    path.unshift(previousVerticle.getKey());
+                    previousVerticle = verticleGroup[previousVerticle.getKey()];
+                }
+
+                return path.length > 0 ? path.join(' -> ') : null;
+            })
         ),
         padding
     );
@@ -122,7 +156,12 @@ function numToLetters(number) {
 
 function getAlgorithmResultsFromGraph(graph) {
     return graph.getAllVertices().reduce((results, verticle) => {
-        results[verticle.getKey()] = bellmanFord(graph, verticle);
+        const _results = bellmanFord(graph, verticle);
+        results.distances[verticle.getKey()] = _results.distances;
+        results.previousVerticles[verticle.getKey()] = _results.previousVertices;
         return results;
-    }, {});
+    }, {
+        distances: {},
+        previousVerticles: {}
+    });
 }

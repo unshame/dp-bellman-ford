@@ -1,10 +1,12 @@
 export default function bellmanFord(graph, startVertex) {
     const distances = {};
+    const previousVertices = {};
 
     // Init all distances with infinity assuming that currently we can't reach
     // any of the vertices except start one.
     distances[startVertex.getKey()] = 0;
     for (let vertex of graph.getAllVertices()) {
+        previousVertices[vertex.getKey()] = null;
         if (vertex.getKey() !== startVertex.getKey()) {
             distances[vertex.getKey()] = Infinity;
         }
@@ -25,10 +27,14 @@ export default function bellmanFord(graph, startVertex) {
                 const distanceToNeighbor = distanceToVertex + edge.weight;
                 if (distanceToNeighbor < distances[neighbor.getKey()]) {
                     distances[neighbor.getKey()] = distanceToNeighbor;
+                    previousVertices[neighbor.getKey()] = vertex;
                 }
             };
         };
     }
 
-    return distances;
+    return {
+        distances,
+        previousVertices
+    };
 }
